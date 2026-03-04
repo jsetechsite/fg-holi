@@ -297,24 +297,66 @@
     const holiColors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500'];
     const skinTones = ['#8d5524', '#c68642', '#e0ac69', '#f1c27d', '#ffdbac'];
 
+    // --- Audio System ---
     function initAudio() {
         if (audioCtx) return;
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    function playDrum(isHeavy) {
+    function playSoundEffect(type) {
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(isHeavy ? 60 : 120, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        gain.gain.setValueAtTime(isHeavy ? 0.3 : 0.15, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        const now = audioCtx.currentTime;
+
+        switch(type) {
+            case 'buzz': // Pixel black hit
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                break;
+            case 'pop': // Color hit
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                break;
+            case 'click': // UI Buttons
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.05);
+                break;
+            case 'bass': // Background Drum
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(60, now);
+                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                break;
+            case 'snare': // Background Percussion
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.2);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                break;
+            case 'melody': // Arpeggio Note
+                osc.type = 'square';
+                const frequencies = [261.63, 329.63, 392.00, 523.25]; // C E G C
+                osc.frequency.setValueAtTime(frequencies[Math.floor(Math.random()*frequencies.length)], now);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                break;
+        }
+
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
+        osc.stop(now + 0.4);
     }
 
     function startPercussion() {
@@ -322,24 +364,27 @@
         let beat = 0;
         musicLoop = setInterval(() => {
             if (!gameActive) return;
-            if (beat % 8 === 0) playDrum(true);
-            else if (beat % 8 === 3 || beat % 8 === 6) playDrum(false);
+            
+            // Kick/Snare pattern
+            if (beat % 8 === 0) playSoundEffect('bass');
+            else if (beat % 8 === 4) playSoundEffect('snare');
+            
+            // Random Holi Melodies every other beat
+            if (beat % 2 === 0 && Math.random() > 0.5) playSoundEffect('melody');
+            
             beat = (beat + 1) % 8;
-        }, 300);
+        }, 150); // Faster tempo for festival feel
     }
 
+    // --- Core Game Logic ---
     function initSky() {
-        // Clear old clouds
         const clouds = skyLayer.querySelectorAll('.cloud');
         clouds.forEach(c => c.remove());
-
         const cloudCount = 6;
-        for (let i = 0; i < cloudCount; i++) {
-            createCloud(Math.random() * 100);
-        }
+        for (let i = 0; i < cloudCount; i++) createCloud();
     }
 
-    function createCloud(startLeftPercent) {
+    function createCloud() {
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         const w = 100 + Math.random() * 100;
@@ -347,15 +392,9 @@
         cloud.style.width = `${w}px`;
         cloud.style.height = `${h}px`;
         cloud.style.top = `${Math.random() * 30}%`;
-        
-        // Speed between 20 and 40 seconds
         const duration = 20 + Math.random() * 20;
         cloud.style.animationDuration = `${duration}s`;
-        
-        // Offset start time so they aren't all in the same spot
-        const delay = -(Math.random() * duration);
-        cloud.style.animationDelay = `${delay}s`;
-        
+        cloud.style.animationDelay = `${-(Math.random() * duration)}s`;
         skyLayer.appendChild(cloud);
     }
 
@@ -385,15 +424,10 @@
             p.style.width = p.style.height = '8px';
             p.style.left = `${x}px`;
             p.style.top = `${y}px`;
-            
             const angle = (Math.PI * 2 / particleCount) * i;
             const dist = 40 + Math.random() * 60;
-            const tx = Math.cos(angle) * dist;
-            const ty = Math.sin(angle) * dist;
-            
-            p.style.setProperty('--tx', `${tx}px`);
-            p.style.setProperty('--ty', `${ty}px`);
-            
+            p.style.setProperty('--tx', `${Math.cos(angle) * dist}px`);
+            p.style.setProperty('--ty', `${Math.sin(angle) * dist}px`);
             container.appendChild(p);
             setTimeout(() => p.remove(), 800);
         }
@@ -410,6 +444,7 @@
     }
 
     const setMove = (dir, btn) => {
+        if (gameActive && dir !== 0 && dir !== moveDirection) playSoundEffect('click');
         moveDirection = dir;
         if (dir !== 0) btn.classList.add('active');
         else {
@@ -432,24 +467,19 @@
         gameActive = true;
         playerPos = window.innerWidth / 2;
         player.style.left = `${playerPos}px`;
-        
         scoreEl.innerText = score;
         timerEl.innerText = timeLeft;
         startOverlay.classList.add('hidden');
         endOverlay.classList.add('hidden');
-        
         document.querySelectorAll('.powder, .splat, .firework-particle').forEach(e => e.remove());
-
         if (spawnTimer) clearInterval(spawnTimer);
         if (gameTimerInterval) clearInterval(gameTimerInterval);
-        
         spawnTimer = setInterval(spawnColor, 400);
         gameTimerInterval = setInterval(() => {
             timeLeft--;
             timerEl.innerText = timeLeft;
             if (timeLeft <= 0) endGame();
         }, 1000);
-
         startPercussion();
         requestAnimationFrame(updateMovement);
     }
@@ -459,35 +489,26 @@
         const source = npcs[Math.floor(Math.random() * npcs.length)];
         source.classList.add('animate-bounce');
         setTimeout(() => source.classList.remove('animate-bounce'), 300);
-
         const powder = document.createElement('div');
         const isBlack = Math.random() < 0.18; 
         const color = isBlack ? '#000000' : holiColors[Math.floor(Math.random() * holiColors.length)];
         powder.className = 'powder';
         powder.style.width = powder.style.height = '25px';
         powder.style.backgroundColor = color;
-        
         const rect = source.getBoundingClientRect();
         let curX = rect.left + rect.width / 2;
         let curY = rect.top;
         let vY = -12 - Math.random() * 5;
         let vX = ((playerPos - curX) / 45) + (Math.random() * 4 - 2);
-
         container.appendChild(powder);
-
         const move = setInterval(() => {
             if (!gameActive) { clearInterval(move); powder.remove(); return; }
-            vY += 0.5;
-            curX += vX;
-            curY += vY;
-            powder.style.left = `${curX}px`;
-            powder.style.top = `${curY}px`;
-
+            vY += 0.5; curX += vX; curY += vY;
+            powder.style.left = `${curX}px`; powder.style.top = `${curY}px`;
             const pRect = player.getBoundingClientRect();
             if (curY > pRect.top && curY < pRect.bottom && curX > pRect.left && curX < pRect.right) {
                 onHit(isBlack, color, curX, curY);
-                clearInterval(move);
-                powder.remove();
+                clearInterval(move); powder.remove();
             }
             if (curY > window.innerHeight) { clearInterval(move); powder.remove(); }
         }, 16);
@@ -503,10 +524,12 @@
         setTimeout(() => splat.remove(), 1200);
 
         if (isBlack) {
+            playSoundEffect('buzz');
             score = Math.max(0, score - 50);
             player.style.filter = 'brightness(0) saturate(0)';
             setTimeout(() => player.style.filter = '', 400);
         } else {
+            playSoundEffect('pop');
             score += 20;
             document.getElementById('player-kurta').style.fill = color;
             createFirework(x, y, color);
@@ -525,10 +548,7 @@
 
     startBtn.addEventListener('click', startGame);
     restartBtn.addEventListener('click', startGame);
-    window.addEventListener('resize', () => {
-        createNPCs();
-        initSky();
-    });
+    window.addEventListener('resize', () => { createNPCs(); initSky(); });
     createNPCs();
     initSky();
 </script>
