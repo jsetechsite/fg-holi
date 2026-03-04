@@ -21,7 +21,7 @@
             overflow: hidden;
         }
 
-        /* Festive Background Elements */
+        /* Sky Elements */
         .sun {
             position: absolute;
             top: 40px;
@@ -32,9 +32,24 @@
             border-radius: 50%;
             box-shadow: 0 0 40px #FFF9C4;
         }
+        
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            opacity: 0.8;
+            filter: blur(2px);
+            z-index: 1;
+            animation: drift linear infinite;
+        }
+        @keyframes drift {
+            from { transform: translateX(-150px); }
+            to { transform: translateX(calc(100vw + 150px)); }
+        }
+
         .temple-silhouette {
             position: absolute;
-            bottom: 20vh;
+            bottom: 25vh; 
             left: 0;
             width: 100%;
             height: 30vh;
@@ -54,6 +69,7 @@
             z-index: 70;
         }
 
+        /* Particles */
         .powder {
             position: absolute;
             border-radius: 50%;
@@ -62,9 +78,21 @@
             opacity: 0.9;
             z-index: 45;
         }
+        .firework-particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 56;
+            animation: explode 0.8s ease-out forwards;
+        }
+        @keyframes explode {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
         .character {
             position: absolute;
-            bottom: 12vh;
+            bottom: 22vh;
             left: 50%;
             transform: translateX(-50%);
             width: 18vw;
@@ -84,7 +112,7 @@
 
         .npc {
             position: absolute;
-            bottom: 10vh;
+            bottom: 20vh;
             width: 12vw;
             max-width: 65px;
             min-width: 45px;
@@ -94,7 +122,7 @@
         }
         .npc-foreground {
             z-index: 60;
-            bottom: -3vh;
+            bottom: 8vh;
             filter: brightness(0.7);
         }
 
@@ -146,10 +174,9 @@
             border: 3px solid #ec4899;
         }
         
-        /* Control Buttons */
         .controls {
             position: absolute;
-            bottom: 40px;
+            bottom: 30px;
             left: 0;
             width: 100%;
             display: flex;
@@ -160,35 +187,38 @@
             pointer-events: none;
         }
         .control-btn {
-            width: 90px;
-            height: 90px;
-            background: rgba(255, 255, 255, 0.4);
-            backdrop-filter: blur(5px);
-            border: 5px solid white;
+            width: 85px;
+            height: 85px;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(8px);
+            border: 4px solid white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 50px;
+            color: #ec4899;
+            font-size: 45px;
             font-weight: bold;
             pointer-events: auto;
             touch-action: none;
             -webkit-user-select: none;
             user-select: none;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-            transition: background 0.2s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background 0.2s;
         }
         .control-btn.active {
-            background: rgba(236, 72, 153, 0.8);
-            transform: scale(0.95);
+            background: rgba(236, 72, 153, 0.9);
+            color: white;
+            transform: scale(0.9);
         }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <div class="sun"></div>
+    <div id="sky-layer">
+        <div class="sun"></div>
+    </div>
     <div class="temple-silhouette"></div>
     <div class="buntings"></div>
 
@@ -231,7 +261,6 @@
 
     <div id="crowd-layer-front"></div>
 
-    <!-- Gameplay Controls -->
     <div class="controls">
         <div id="btn-left" class="control-btn">←</div>
         <div id="btn-right" class="control-btn">→</div>
@@ -240,6 +269,7 @@
 
 <script>
     const container = document.getElementById('game-container');
+    const skyLayer = document.getElementById('sky-layer');
     const player = document.getElementById('player');
     const scoreEl = document.getElementById('score');
     const timerEl = document.getElementById('timer');
@@ -261,8 +291,8 @@
     let npcs = [];
     
     let playerPos = window.innerWidth / 2;
-    let moveDirection = 0; // -1 for left, 1 for right, 0 for none
-    const moveSpeed = 8; // Pixels per frame for smooth movement
+    let moveDirection = 0;
+    const moveSpeed = 8;
 
     const holiColors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500'];
     const skinTones = ['#8d5524', '#c68642', '#e0ac69', '#f1c27d', '#ffdbac'];
@@ -298,6 +328,37 @@
         }, 300);
     }
 
+    function initSky() {
+        // Clear old clouds
+        const clouds = skyLayer.querySelectorAll('.cloud');
+        clouds.forEach(c => c.remove());
+
+        const cloudCount = 6;
+        for (let i = 0; i < cloudCount; i++) {
+            createCloud(Math.random() * 100);
+        }
+    }
+
+    function createCloud(startLeftPercent) {
+        const cloud = document.createElement('div');
+        cloud.className = 'cloud';
+        const w = 100 + Math.random() * 100;
+        const h = w * 0.4;
+        cloud.style.width = `${w}px`;
+        cloud.style.height = `${h}px`;
+        cloud.style.top = `${Math.random() * 30}%`;
+        
+        // Speed between 20 and 40 seconds
+        const duration = 20 + Math.random() * 20;
+        cloud.style.animationDuration = `${duration}s`;
+        
+        // Offset start time so they aren't all in the same spot
+        const delay = -(Math.random() * duration);
+        cloud.style.animationDelay = `${delay}s`;
+        
+        skyLayer.appendChild(cloud);
+    }
+
     function createNPCs() {
         backCrowd.innerHTML = ''; frontCrowd.innerHTML = '';
         npcs = [];
@@ -315,20 +376,39 @@
         }
     }
 
-    // BUTTON MOVEMENT LOOP
+    function createFirework(x, y, color) {
+        const particleCount = 12;
+        for (let i = 0; i < particleCount; i++) {
+            const p = document.createElement('div');
+            p.className = 'firework-particle';
+            p.style.backgroundColor = color;
+            p.style.width = p.style.height = '8px';
+            p.style.left = `${x}px`;
+            p.style.top = `${y}px`;
+            
+            const angle = (Math.PI * 2 / particleCount) * i;
+            const dist = 40 + Math.random() * 60;
+            const tx = Math.cos(angle) * dist;
+            const ty = Math.sin(angle) * dist;
+            
+            p.style.setProperty('--tx', `${tx}px`);
+            p.style.setProperty('--ty', `${ty}px`);
+            
+            container.appendChild(p);
+            setTimeout(() => p.remove(), 800);
+        }
+    }
+
     function updateMovement() {
         if (!gameActive) return;
-        
         if (moveDirection !== 0) {
             playerPos += moveDirection * moveSpeed;
-            // Boundaries
             playerPos = Math.max(40, Math.min(window.innerWidth - 40, playerPos));
             player.style.left = `${playerPos}px`;
         }
         requestAnimationFrame(updateMovement);
     }
 
-    // Input Listeners
     const setMove = (dir, btn) => {
         moveDirection = dir;
         if (dir !== 0) btn.classList.add('active');
@@ -340,12 +420,12 @@
 
     btnLeft.addEventListener('pointerdown', () => setMove(-1, btnLeft));
     btnRight.addEventListener('pointerdown', () => setMove(1, btnRight));
-    
     window.addEventListener('pointerup', () => setMove(0));
     window.addEventListener('pointercancel', () => setMove(0));
 
     function startGame() {
         initAudio();
+        initSky();
         createNPCs();
         score = 0;
         timeLeft = 60;
@@ -358,7 +438,7 @@
         startOverlay.classList.add('hidden');
         endOverlay.classList.add('hidden');
         
-        document.querySelectorAll('.powder, .splat').forEach(e => e.remove());
+        document.querySelectorAll('.powder, .splat, .firework-particle').forEach(e => e.remove());
 
         if (spawnTimer) clearInterval(spawnTimer);
         if (gameTimerInterval) clearInterval(gameTimerInterval);
@@ -429,6 +509,7 @@
         } else {
             score += 20;
             document.getElementById('player-kurta').style.fill = color;
+            createFirework(x, y, color);
         }
         scoreEl.innerText = score;
     }
@@ -444,8 +525,12 @@
 
     startBtn.addEventListener('click', startGame);
     restartBtn.addEventListener('click', startGame);
-    window.addEventListener('resize', createNPCs);
+    window.addEventListener('resize', () => {
+        createNPCs();
+        initSky();
+    });
     createNPCs();
+    initSky();
 </script>
 
 </body>
