@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Food Gang's Holi Color Dash</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #87CEEB; /* Sky Blue */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: manipulation; /* Allow tapping but prevent zoom */
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            cursor: crosshair;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F2F1 60%, #fef3c7 100%);
+            overflow: hidden;
+        }
+
+        /* Festive Background Elements */
+        .sun {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #FFFDE7 0%, #FFF176 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 40px #FFF9C4;
+        }
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            opacity: 0.8;
+            z-index: 1;
+        }
+        .temple-silhouette {
+            position: absolute;
+            bottom: 20vh;
+            left: 0;
+            width: 100%;
+            height: 30vh;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" preserveAspectRatio="none"><path d="M0 300 L0 250 L50 200 L100 250 L150 180 L200 250 L250 100 L300 250 L350 200 L400 250 L450 150 L500 250 L1000 250 L1000 300 Z" fill="%23b2dfdb" opacity="0.4"/></svg>');
+            background-size: cover;
+            z-index: 2;
+        }
+        .buntings {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><path d="M0 0 Q25 20 50 0 Q75 20 100 0" fill="none" stroke="%23ff4081" stroke-width="1"/><path d="M10 8 L15 15 L20 8 Z" fill="%23FFD700"/><path d="M35 8 L40 15 L45 8 Z" fill="%23FF4500"/><path d="M60 8 L65 15 L70 8 Z" fill="%2332CD32"/><path d="M85 8 L90 15 L95 8 Z" fill="%231E90FF"/></svg>');
+            background-repeat: repeat-x;
+            background-size: 200px 40px;
+            z-index: 70;
+        }
+
+        .powder {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(4px);
+            opacity: 0.9;
+            z-index: 45;
+        }
+        .character {
+            position: absolute;
+            bottom: 12vh;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 18vw;
+            max-width: 90px;
+            min-width: 65px;
+            height: auto;
+            transition: left 0.1s ease-out;
+            z-index: 55;
+            pointer-events: none; /* Character shouldn't block touches */
+        }
+        @keyframes dance {
+            0%, 100% { transform: translateX(-50%) translateY(0) rotate(0deg); }
+            25% { transform: translateX(-50%) translateY(-12px) rotate(-4deg); }
+            75% { transform: translateX(-50%) translateY(-12px) rotate(4deg); }
+        }
+        .dancing { animation: dance 0.5s infinite ease-in-out; }
+
+        .npc {
+            position: absolute;
+            bottom: 10vh;
+            width: 12vw;
+            max-width: 65px;
+            min-width: 45px;
+            height: auto;
+            z-index: 10;
+            opacity: 0.85;
+        }
+        .npc-foreground {
+            z-index: 60;
+            bottom: -3vh;
+            filter: brightness(0.7);
+            pointer-events: none;
+        }
+
+        @keyframes throw-motion {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-15px) scale(1.1); }
+        }
+        .throwing { animation: throw-motion 0.3s ease; }
+
+        .splat {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+            animation: splat-fade 1.2s forwards;
+        }
+        @keyframes splat-fade {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(3.5); opacity: 0; }
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.88);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Higher priority */
+            color: white;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            pointer-events: auto;
+        }
+        .ui-panel {
+            position: absolute;
+            top: env(safe-area-inset-top, 25px);
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 85;
+            pointer-events: none;
+        }
+        .stat-box {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 8px 18px;
+            border-radius: 14px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+            font-weight: 900;
+            font-size: 1.1rem;
+            color: #c026d3;
+            border: 3px solid #ec4899;
+        }
+        
+        button {
+            touch-action: auto !important; /* Ensure buttons are always interactable */
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="sun"></div>
+    <div class="cloud" style="top:10%; left:10%; width:100px; height:40px;"></div>
+    <div class="cloud" style="top:15%; right:20%; width:150px; height:50px;"></div>
+    <div class="temple-silhouette"></div>
+    <div class="buntings"></div>
+
+    <div class="ui-panel">
+        <div class="stat-box">Score: <span id="score">0</span></div>
+        <div class="stat-box" id="timer-box">Time: <span id="timer">60</span>s</div>
+    </div>
+
+    <!-- Start Overlay -->
+    <div id="start-overlay" class="overlay">
+        <h1 class="text-pink-500 font-bold text-5xl md:text-7xl mb-2 drop-shadow-lg">Food Gang's</h1>
+        <h2 class="text-yellow-400 font-black text-4xl md:text-6xl mb-6 uppercase tracking-wider">Holi Color Dash</h2>
+        <p class="text-xl md:text-2xl mb-8 max-w-lg text-yellow-100">Dodge the <span class="text-black font-bold px-2 bg-white rounded">BLACK</span> powder to keep your score!</p>
+        <button id="start-btn" class="bg-gradient-to-r from-pink-600 to-orange-500 hover:from-pink-700 hover:to-orange-600 text-white font-black py-5 px-14 rounded-full text-2xl md:text-3xl transition-all hover:scale-110 active:scale-90 shadow-2xl border-4 border-white cursor-pointer">
+            START FESTIVAL
+        </button>
+    </div>
+
+    <!-- End Overlay -->
+    <div id="end-overlay" class="overlay hidden">
+        <h1 class="text-5xl md:text-6xl font-black mb-4 text-yellow-400">Holi Hai!</h1>
+        <p class="text-2xl md:text-3xl mb-8">Final Festive Score: <span id="final-score" class="font-bold text-pink-500">0</span></p>
+        <button id="restart-btn" class="bg-white hover:bg-gray-100 text-pink-600 font-black py-4 px-12 rounded-full text-xl md:text-2xl transition-transform active:scale-95 shadow-xl cursor-pointer">
+            TRY AGAIN
+        </button>
+    </div>
+
+    <div id="crowd-layer-back"></div>
+    
+    <div id="player" class="character dancing">
+        <svg viewBox="0 0 100 150" style="width: 100%; height: auto;">
+            <circle cx="50" cy="30" r="20" fill="#ffdbac" />
+            <path id="player-kurta" d="M30 50 L70 50 L80 110 L20 110 Z" fill="#ffffff" />
+            <rect id="player-leg-l" x="35" y="110" width="10" height="30" fill="#ffffff" />
+            <rect id="player-leg-r" x="55" y="110" width="10" height="30" fill="#ffffff" />
+            <path d="M30 60 Q10 80 20 100" stroke="#ffdbac" stroke-width="8" fill="none" />
+            <path d="M70 60 Q90 80 80 100" stroke="#ffdbac" stroke-width="8" fill="none" />
+        </svg>
+    </div>
+
+    <div id="crowd-layer-front"></div>
+</div>
+
+<script>
+    const container = document.getElementById('game-container');
+    const player = document.getElementById('player');
+    const scoreEl = document.getElementById('score');
+    const timerEl = document.getElementById('timer');
+    const startOverlay = document.getElementById('start-overlay');
+    const endOverlay = document.getElementById('end-overlay');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const finalScoreEl = document.getElementById('final-score');
+    const backCrowd = document.getElementById('crowd-layer-back');
+    const frontCrowd = document.getElementById('crowd-layer-front');
+
+    let score = 0;
+    let timeLeft = 60;
+    let gameActive = false;
+    let spawnTimer, gameLoop, musicLoop;
+    let audioCtx;
+    let npcs = [];
+
+    const holiColors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500'];
+    const skinTones = ['#8d5524', '#c68642', '#e0ac69', '#f1c27d', '#ffdbac'];
+
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playDrum(isHeavy) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        const freq = isHeavy ? 60 : 120;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(isHeavy ? 0.3 : 0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+    }
+
+    function startPercussion() {
+        if (musicLoop) clearInterval(musicLoop);
+        let beat = 0;
+        const bpm = 110; 
+        const stepTime = (60 / bpm) / 2;
+        musicLoop = setInterval(() => {
+            if (!gameActive) return;
+            if (beat % 8 === 0) playDrum(true);
+            else if (beat % 8 === 3 || beat % 8 === 6) playDrum(false);
+            beat = (beat + 1) % 8;
+        }, stepTime * 1000);
+    }
+
+    function createNPCs() {
+        backCrowd.innerHTML = '';
+        frontCrowd.innerHTML = '';
+        npcs = [];
+        const count = window.innerWidth < 600 ? 10 : 18;
+        for (let i = 0; i < count; i++) {
+            const isFront = i % 5 === 0;
+            const npc = document.createElement('div');
+            npc.className = `npc ${isFront ? 'npc-foreground' : ''}`;
+            npc.style.left = (i * (100 / count)) + '%';
+            const skin = skinTones[Math.floor(Math.random() * skinTones.length)];
+            const kurta = holiColors[Math.floor(Math.random() * holiColors.length)];
+            npc.innerHTML = `
+                <svg viewBox="0 0 100 150">
+                    <circle cx="50" cy="30" r="20" fill="${skin}" />
+                    <path d="M30 50 L70 50 L80 110 L20 110 Z" fill="${isFront ? '#ffffff' : kurta}" />
+                    <circle cx="50" cy="80" r="10" fill="rgba(255,255,255,0.3)" />
+                </svg>
+            `;
+            (isFront ? frontCrowd : backCrowd).appendChild(npc);
+            npcs.push(npc);
+        }
+    }
+
+    const handleMove = (x) => {
+        if (!gameActive) return;
+        player.style.left = `${x}px`;
+    };
+
+    // Use capturing to ensure movement doesn't block UI if accidentally triggered
+    window.addEventListener('mousemove', (e) => handleMove(e.clientX));
+    window.addEventListener('touchmove', (e) => {
+        if (gameActive) {
+            handleMove(e.touches[0].clientX);
+            // Only prevent default if we are playing, to avoid breaking button taps
+            if (e.cancelable) e.preventDefault();
+        }
+    }, { passive: false });
+
+    function startGame() {
+        initAudio();
+        createNPCs();
+        score = 0;
+        timeLeft = 60;
+        gameActive = true;
+        scoreEl.innerText = score;
+        timerEl.innerText = timeLeft;
+        startOverlay.classList.add('hidden');
+        endOverlay.classList.add('hidden');
+        
+        document.querySelectorAll('.powder, .splat').forEach(e => e.remove());
+
+        if (spawnTimer) clearInterval(spawnTimer);
+        if (gameLoop) clearInterval(gameLoop);
+        
+        spawnTimer = setInterval(spawnFromRandomNPC, 350);
+        gameLoop = setInterval(updateTimer, 1000);
+        startPercussion();
+    }
+
+    // Explicit listeners for mobile reliability
+    startBtn.addEventListener('click', startGame);
+    startBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        startGame();
+    });
+
+    restartBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        startGame();
+    });
+
+    function updateTimer() {
+        timeLeft--;
+        timerEl.innerText = timeLeft;
+        if (timeLeft <= 0) endGame();
+    }
+
+    function spawnFromRandomNPC() {
+        if (!gameActive || npcs.length === 0) return;
+        const sourceNpc = npcs[Math.floor(Math.random() * npcs.length)];
+        sourceNpc.classList.add('throwing');
+        setTimeout(() => sourceNpc.classList.remove('throwing'), 300);
+
+        const powder = document.createElement('div');
+        const isBlack = Math.random() < 0.18; 
+        const color = isBlack ? '#000000' : holiColors[Math.floor(Math.random() * holiColors.length)];
+        const size = window.innerWidth < 600 ? 22 : 28;
+        powder.className = 'powder';
+        powder.style.width = size + 'px';
+        powder.style.height = size + 'px';
+        powder.style.backgroundColor = color;
+        
+        const npcRect = sourceNpc.getBoundingClientRect();
+        const startX = npcRect.left + (npcRect.width / 2);
+        const startY = npcRect.top + 20;
+        
+        powder.style.left = startX + 'px';
+        powder.style.top = startY + 'px';
+        container.appendChild(powder);
+
+        let currentX = startX;
+        let currentY = startY;
+        const playerX = player.offsetLeft;
+        const diffX = playerX - startX;
+        let velY = -12 - Math.random() * 10;
+        let velX = (diffX / 50) + (Math.random() * 4 - 2);
+        const gravity = 0.5;
+
+        const moveInterval = setInterval(() => {
+            if (!gameActive) {
+                clearInterval(moveInterval);
+                powder.remove();
+                return;
+            }
+            velY += gravity;
+            currentX += velX;
+            currentY += velY;
+            powder.style.left = currentX + 'px';
+            powder.style.top = currentY + 'px';
+            const scale = 0.8 + (currentY / window.innerHeight);
+            powder.style.transform = `scale(${scale})`;
+
+            const pRect = player.getBoundingClientRect();
+            const bRect = powder.getBoundingClientRect();
+
+            if (bRect.bottom >= pRect.top + 15 && bRect.top <= pRect.bottom && bRect.right >= pRect.left && bRect.left <= pRect.right) {
+                handleHit(isBlack, color, currentX, currentY);
+                clearInterval(moveInterval);
+                powder.remove();
+            }
+            if (currentY > window.innerHeight + 50 || currentX < -50 || currentX > window.innerWidth + 50) {
+                clearInterval(moveInterval);
+                powder.remove();
+            }
+        }, 16);
+    }
+
+    function handleHit(isBlack, color, x, y) {
+        createSplat(x, y, color);
+        if (isBlack) {
+            score = 0;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.frequency.value = 100;
+            g.gain.value = 0.2;
+            osc.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+            player.style.filter = 'brightness(0.1) saturate(0)';
+            setTimeout(() => player.style.filter = '', 500);
+        } else {
+            score += 15;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.frequency.value = 500 + Math.random() * 400;
+            g.gain.value = 0.05;
+            osc.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+            const parts = ['player-kurta', 'player-leg-l', 'player-leg-r'];
+            document.getElementById(parts[Math.floor(Math.random() * parts.length)]).style.fill = color;
+        }
+        scoreEl.innerText = score;
+    }
+
+    function createSplat(x, y, color) {
+        const splat = document.createElement('div');
+        splat.className = 'splat';
+        const size = window.innerWidth < 600 ? 80 : 120;
+        splat.style.left = (x - size/2) + 'px';
+        splat.style.top = (y - size/2) + 'px';
+        splat.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 100 100"><path d="M50 10 Q90 10 95 45 T55 90 T10 70 T30 25 Z" fill="${color}" opacity="0.9" /></svg>`;
+        container.appendChild(splat);
+        setTimeout(() => splat.remove(), 1200);
+    }
+
+    function endGame() {
+        gameActive = false;
+        clearInterval(spawnTimer);
+        clearInterval(gameLoop);
+        finalScoreEl.innerText = score;
+        endOverlay.classList.remove('hidden');
+    }
+
+    window.addEventListener('resize', () => { if (!gameActive) createNPCs(); });
+    createNPCs();
+</script>
+
+</body>
+</html>
