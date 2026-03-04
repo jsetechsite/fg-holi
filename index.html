@@ -12,6 +12,13 @@
             background: #87CEEB;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             touch-action: none;
+            /* Prevent highlighting and selection for smoother gameplay */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         #game-container {
             position: relative;
@@ -88,6 +95,21 @@
         @keyframes explode {
             0% { transform: translate(0, 0) scale(1); opacity: 1; }
             100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
+        /* Floating Deduction Text */
+        .deduction-text {
+            position: absolute;
+            color: #000;
+            font-weight: 900;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 100;
+            animation: float-up-fade 1s ease-out forwards;
+        }
+        @keyframes float-up-fade {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
         }
 
         .character {
@@ -433,6 +455,16 @@
         }
     }
 
+    function createDeduction(x, y) {
+        const text = document.createElement('div');
+        text.className = 'deduction-text';
+        text.style.left = `${x}px`;
+        text.style.top = `${y}px`;
+        text.innerText = '-50';
+        container.appendChild(text);
+        setTimeout(() => text.remove(), 1000);
+    }
+
     function updateMovement() {
         if (!gameActive) return;
         if (moveDirection !== 0) {
@@ -453,8 +485,8 @@
         }
     };
 
-    btnLeft.addEventListener('pointerdown', () => setMove(-1, btnLeft));
-    btnRight.addEventListener('pointerdown', () => setMove(1, btnRight));
+    btnLeft.addEventListener('pointerdown', (e) => { e.preventDefault(); setMove(-1, btnLeft); });
+    btnRight.addEventListener('pointerdown', (e) => { e.preventDefault(); setMove(1, btnRight); });
     window.addEventListener('pointerup', () => setMove(0));
     window.addEventListener('pointercancel', () => setMove(0));
 
@@ -471,7 +503,7 @@
         timerEl.innerText = timeLeft;
         startOverlay.classList.add('hidden');
         endOverlay.classList.add('hidden');
-        document.querySelectorAll('.powder, .splat, .firework-particle').forEach(e => e.remove());
+        document.querySelectorAll('.powder, .splat, .firework-particle, .deduction-text').forEach(e => e.remove());
         if (spawnTimer) clearInterval(spawnTimer);
         if (gameTimerInterval) clearInterval(gameTimerInterval);
         spawnTimer = setInterval(spawnColor, 400);
@@ -525,6 +557,7 @@
 
         if (isBlack) {
             playSoundEffect('buzz');
+            createDeduction(x, y - 40);
             score = Math.max(0, score - 50);
             player.style.filter = 'brightness(0) saturate(0)';
             setTimeout(() => player.style.filter = '', 400);
